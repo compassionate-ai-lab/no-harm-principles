@@ -4,7 +4,7 @@
 
 Companion programs for the book **No-Harm Principles in AI Architectures: Ahimsa-Driven Multi-Agent AI Systems** by Dr. Sri Amit Ray ([Compassionate AI Lab](https://amitray.com/compassionate-ai-lab/), 2026; ISBN 978-81-69641-30-2 (First Edition, 2026)).
 
-The book extends Ahimsa (non-injury) from the single AI agent to the multi-agent system: individual hard constraints, collective (joint-action) constraints enforced outside the agents, and the protocols and ledgers that keep responsibility reconstructible. This repository holds the program behind every worked example in the book, and a test file that checks each printed number.
+[The book](https://amitray.com/no-harm-principles-ai-architectures-ebook/), extends Ahimsa (non-injury) from the single AI agent to the multi-agent system: individual hard constraints, collective (joint-action) constraints enforced outside the agents, and the protocols and ledgers that keep responsibility reconstructible. This repository holds the program behind every worked example in the book, and a test file that checks each printed number.
 
 ## Run it
 
