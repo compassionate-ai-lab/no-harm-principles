@@ -15,6 +15,16 @@ Test:  python -m unittest test_models.py
 from __future__ import annotations
 
 import hashlib
+import math
+
+
+def _finite(x, lo=None):
+    """True for a real, finite number (bool excluded) not below lo."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return False
+    if not math.isfinite(x):
+        return False
+    return lo is None or x >= lo
 
 
 # ---------------------------------------------------------------- ch01
@@ -22,7 +32,13 @@ def ch01_emergent_risk(p_local=0.04, rho=0.18, density=6.0,
                        safe_density=3.0, amp_per_excess=1.35):
     """Corridor collision screen for a pair of drones sharing signals.
 
-    Returns (independent pair value p^2, correlated pair value
+    rho is a shared-cause coupling coefficient used by the screen
+    p^2 + rho*p.  It is a conservative screening value, not a measured
+    collision probability: if rho were the Pearson correlation of two
+    equal-probability binary failures, the exact joint probability
+    would be p^2 + rho*p*(1 - p) (see ch01_pearson_joint).
+
+    Returns (independent pair value p^2, correlated pair screen
     p^2 + rho*p, amplification allowance A, corridor hazard
     P_joint * (1 + A)).
     """
@@ -32,6 +48,12 @@ def ch01_emergent_risk(p_local=0.04, rho=0.18, density=6.0,
     corridor_amp = amp_per_excess * excess
     hazard = round(joint * (1.0 + corridor_amp), 4)
     return indep, round(joint, 4), round(corridor_amp, 2), hazard
+
+
+def ch01_pearson_joint(p_local=0.04, rho=0.18):
+    """Exact joint failure probability when rho is the Pearson
+    correlation of two Bernoulli(p) failures: p^2 + rho*p*(1-p)."""
+    return round(p_local * p_local + rho * p_local * (1.0 - p_local), 6)
 
 
 def ch01_chain_handoff(local_err=0.03, handoffs=4):
@@ -114,25 +136,61 @@ def ch04_joint_feasibility(xi=0.40):
             greedy, round(util(greedy), 2), best, round(util(best), 2))
 
 
-def collective_filter(proposals, local_ok, collective_harm, xi, utility):
+ESCALATE = "ESCALATE"
+
+
+def collective_filter(proposals, local_ok, collective_harm, xi, utility,
+                      uncertainty=None, tolerance=None, gates_ok=None):
     """Collective Feasibility Filter (Algorithm 4.1).
 
     proposals       iterable of joint actions
     local_ok(a)     True if every agent's own constraint holds for a
     collective_harm(a) -> projected collective harm of a
-    xi              system-level bound
+    xi              system-level bound (finite, >= 0)
     utility(a)      summed reward, consulted only inside A_CF
-    Returns (chosen joint action or None, A_CF, rejected with reasons).
+    uncertainty(a)  optional: uncertainty of the harm estimate
+    tolerance       largest uncertainty accepted (needed with uncertainty)
+    gates_ok(a)     optional: True if a is authorized and every required
+                    consent is given (Section 4.2); default: no gates
+
+    Unknown risk is never a pass (Axiom 3): a harm estimate that raises,
+    is None, NaN, infinite, negative or not a number, or whose
+    uncertainty is unknown or above tolerance, is logged "unresolved".
+    Returns (chosen joint action, or ESCALATE if A_CF is empty,
+    A_CF, rejected with reasons).
     """
+    if not _finite(xi, 0.0):
+        raise ValueError("xi must be a finite, non-negative number")
+    if uncertainty is not None and not _finite(tolerance, 0.0):
+        raise ValueError("tolerance must be finite and non-negative")
     a_cf, rejected = [], []
     for a in proposals:
-        if not local_ok(a):
+        if gates_ok is not None and gates_ok(a) is not True:
+            rejected.append((a, "gate"))
+            continue
+        if local_ok(a) is not True:
             rejected.append((a, "individual"))
-        elif collective_harm(a) > xi:
+            continue
+        try:
+            h = collective_harm(a)
+        except Exception:
+            h = None
+        if not _finite(h, 0.0):
+            rejected.append((a, "unresolved"))
+            continue
+        if uncertainty is not None:
+            try:
+                u = uncertainty(a)
+            except Exception:
+                u = None
+            if not _finite(u, 0.0) or u > tolerance:
+                rejected.append((a, "unresolved"))
+                continue
+        if h > xi:
             rejected.append((a, "collective"))
         else:
             a_cf.append(a)
-    chosen = max(a_cf, key=utility) if a_cf else None
+    chosen = max(a_cf, key=utility) if a_cf else ESCALATE
     return chosen, a_cf, rejected
 
 
@@ -187,7 +245,15 @@ def ch06_early_escalation(h=(0.04, 0.07, 0.10, 0.13), xi=0.60, review_in=3):
     """Rate-of-accumulation trigger: escalate when the running total plus
     the current slope times the steps until the next human review would
     cross the bound.  Returns (running totals, step of escalation or None,
-    step at which the total itself would cross)."""
+    step at which the total itself would cross, or None if the trend
+    never crosses).  The extrapolation stops as soon as the increments
+    stop growing the total, so a flat or falling trajectory ends."""
+    if not _finite(xi) or not isinstance(review_in, int) or review_in < 0:
+        raise ValueError("xi must be finite and review_in an int >= 0")
+    if not all(_finite(x) for x in h):
+        raise ValueError("increments must be finite numbers")
+    if not h:
+        return [], None, None
     total, totals, esc = 0.0, [], None
     for t, x in enumerate(h):
         total += x
@@ -203,12 +269,16 @@ def ch06_early_escalation(h=(0.04, 0.07, 0.10, 0.13), xi=0.60, review_in=3):
             cross = t + 1
             break
     if cross is None:          # extrapolate the same slope
-        run, x, t = totals[-1], h[-1], len(h)
-        slope = h[-1] - h[-2]
+        run, x, t = sum(h), h[-1], len(h)
+        slope = h[-1] - h[-2] if len(h) > 1 else h[-1]
         while run <= xi:
             x += slope
+            if x <= 0 and slope <= 0:      # total can never grow again
+                return totals, esc, None
             run += x
             t += 1
+            if t > 100000:                 # safety cap
+                return totals, esc, None
         cross = t
     return totals, esc, cross
 
@@ -218,21 +288,60 @@ ENVELOPE_FIELDS = ["task_id", "sender", "recipient", "action_proposal",
                    "assumptions", "uncertainty", "authorization_scope",
                    "safety_status"]
 LADDER = ["reformulate", "staged_commitment", "escalate", "refuse"]
+SAFETY_STATUSES = ("green", "yellow", "red")
+GATE_CRITICAL = ("uncertainty", "authorization_scope", "safety_status")
+
+
+def _text(v):
+    return isinstance(v, str) and v.strip() != ""
+
+
+def _text_or_list(v):
+    if _text(v):
+        return True
+    return isinstance(v, (list, tuple)) and len(v) > 0 and all(_text(x) for x in v)
+
+
+def _uncertainty_ok(v):
+    """A finite number >= 0, a [low, high] range, or a non-empty dict
+    mapping each harm dimension to one of those."""
+    def one(x):
+        if _finite(x, 0.0):
+            return True
+        return (isinstance(x, (list, tuple)) and len(x) == 2
+                and all(_finite(y) for y in x) and x[0] <= x[1])
+    if isinstance(v, dict):
+        return len(v) > 0 and all(_text(k) and one(x) for k, x in v.items())
+    return one(v)
+
+
+FIELD_CHECKS = {"task_id": _text, "sender": _text, "recipient": _text,
+                "action_proposal": _text, "assumptions": _text_or_list,
+                "uncertainty": _uncertainty_ok,
+                "authorization_scope": _text_or_list,
+                "safety_status": lambda v: v in SAFETY_STATUSES}
 
 
 def envelope_gate(proposal):
-    """Gate rule for a safety-aware message envelope.
+    """Gate rule for a safety-aware message envelope (Algorithm 7.1).
 
-    red safety status -> refuse; missing uncertainty or authorization
-    scope -> escalate (the collective check cannot be run); any other
-    missing field -> return to sender for reformulation; complete -> proceed.
+    A field counts as present only if it has the required type and
+    content: empty strings, lists or dicts, non-finite numbers and
+    statuses other than green/yellow/red are treated as missing.
+    red safety status -> refuse; uncertainty, authorization scope or
+    safety status missing or invalid -> escalate (the collective check
+    cannot be run); any other missing field -> reformulate;
+    complete -> proceed.  Returns (missing or invalid fields, outcome).
     """
-    missing = [f for f in ENVELOPE_FIELDS if proposal.get(f) in (None, "")]
+    if not isinstance(proposal, dict):
+        return list(ENVELOPE_FIELDS), LADDER[2]
+    missing = [f for f in ENVELOPE_FIELDS
+               if not FIELD_CHECKS[f](proposal.get(f))]
     if proposal.get("safety_status") == "red":
         return missing, LADDER[3]
     if not missing:
         return missing, "proceed"
-    if "uncertainty" in missing or "authorization_scope" in missing:
+    if any(f in missing for f in GATE_CRITICAL):
         return missing, LADDER[2]
     return missing, LADDER[0]
 
@@ -297,13 +406,23 @@ def ch08_aging_with_deadline(base=(2.0, 1.0, 1.4), aging=0.25, horizon=12,
 LEDGER_EVENTS = ["E1: propose x1y2", "E2: collective check 0.55 > XI 0.40",
                  "E3: block x1y2", "E4: reformulate x1y1",
                  "E5: collective check 0.30 <= XI 0.40"]
-GENESIS = "0" * 8
+GENESIS = "0" * 64          # full-length genesis value
+
+
+def _link(prev, ev):
+    """Full 256-bit SHA-256 link (64 hex digits); never truncated."""
+    return hashlib.sha256((prev + ev).encode("utf-8")).hexdigest()
+
+
+def short(h, n=8):
+    """Display form of a hash, for printing only; store the full hash."""
+    return h[:n] + "..."
 
 
 def ledger_build(events):
     chain, prev = [], GENESIS
     for ev in events:
-        h = hashlib.sha256((prev + ev).encode("utf-8")).hexdigest()[:8]
+        h = _link(prev, ev)
         chain.append((ev, h))
         prev = h
     return chain
@@ -312,15 +431,31 @@ def ledger_build(events):
 def ledger_verify(chain):
     """Recompute the chain from genesis; a link is valid only if its stored
     hash equals the recomputed one.  Returns (valid count, first bad index
-    (1-based) or None)."""
+    (1-based) or None).
+
+    A chain that is internally consistent is not proof of an unchanged
+    history: someone who rewrites every later record and hash, or
+    deletes the final records, leaves a chain that verifies.  Detecting
+    that needs a trusted external checkpoint (ledger_verify_anchor)."""
     prev, ok = GENESIS, []
     for ev, stored in chain:
-        h = hashlib.sha256((prev + ev).encode("utf-8")).hexdigest()[:8]
+        h = _link(prev, ev)
         ok.append(h == stored)
         prev = h
     first_bad = next((i + 1 for i, v in enumerate(ok) if not v), None)
     valid = ok.index(False) if False in ok else len(ok)
     return valid, first_bad
+
+
+def ledger_verify_anchor(chain, anchor_len, anchor_hash):
+    """Check a chain against an externally published checkpoint
+    (Section 9.9): the record count and full head hash published at
+    that time.  Returns True only if the chain still contains that head
+    at that position and verifies up to it."""
+    if len(chain) < anchor_len or anchor_len < 1:
+        return False                      # records deleted
+    valid, _ = ledger_verify(chain[:anchor_len])
+    return valid == anchor_len and chain[anchor_len - 1][1] == anchor_hash
 
 
 def ch09_ledger_hash():
@@ -391,12 +526,25 @@ def ch12_flash_decay(alpha=0.35, theta=0.55, loops=3):
 def aggregate_breaker(exposures, limit=0.03, rho=0.25):
     """Joint-action breaker: correlation-adjusted aggregate exposure of
     the strategies that fired together, checked outside every agent.
-    Returns (aggregate, action)."""
-    n = len(exposures)
-    if n == 0:
+
+    A = max(e) + rho * (sum(e) - max(e)): the largest exposure counts in
+    full and every other correlated strategy adds the fraction rho of
+    its own.  For n equal exposures a this equals a*(1 + rho*(n-1)).
+    Adding a strategy can never lower A, so small orders cannot dilute
+    a large one below the limit.  Exposures are magnitudes (>= 0) in the
+    aligned direction.  Invalid inputs fail closed (halt-new-orders).
+    Returns (aggregate or None, action)."""
+    try:
+        e = list(exposures)
+    except TypeError:
+        return None, "halt-new-orders"
+    if not (_finite(limit, 0.0) and _finite(rho, 0.0) and rho <= 1.0
+            and all(_finite(x, 0.0) for x in e)):
+        return None, "halt-new-orders"
+    if not e:
         return 0.0, "allow"
-    mean = sum(exposures) / n
-    agg = mean * (1 + rho * (n - 1))
+    top = max(e)
+    agg = round(top + rho * (sum(e) - top), 10)
     return round(agg, 4), ("halt-new-orders" if agg > limit else "allow")
 
 
@@ -465,6 +613,7 @@ def ch15_deployment_refusal(severe_modes=3, mitigated=2, contestation=True):
 if __name__ == "__main__":
     rows = [
         ("ch01_emergent_risk", ch01_emergent_risk()),
+        ("ch01_pearson_joint", ch01_pearson_joint()),
         ("ch01_chain_handoff", ch01_chain_handoff()),
         ("ch01_harm_screen", ch01_harm_screen()),
         ("ch02_least_harm_option", ch02_least_harm_option()[1:]),
@@ -486,6 +635,8 @@ if __name__ == "__main__":
         ("ch12_flash_decay", ch12_flash_decay()),
         ("ch12_aggregate_breaker", aggregate_breaker([0.02] * 8)),
         ("ch12_breaker_three", aggregate_breaker([0.02] * 3)),
+        ("ch12_breaker_single", aggregate_breaker([0.04])),
+        ("ch12_breaker_diluted", aggregate_breaker([0.04, 0.0001])),
         ("ch13_floor_sets", ch13_floor_sets()),
         ("ch14_capability_constraint", ch14_capability_constraint()),
         ("ch14_cycle4", ch14_capability_constraint(periods=4)),

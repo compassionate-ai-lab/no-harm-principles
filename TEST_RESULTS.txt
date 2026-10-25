@@ -1,0 +1,40 @@
+test_ch01 (test_models.TestBookNumbers.test_ch01) ... ok
+test_ch02 (test_models.TestBookNumbers.test_ch02) ... ok
+test_ch03 (test_models.TestBookNumbers.test_ch03) ... ok
+test_ch04 (test_models.TestBookNumbers.test_ch04) ... ok
+test_ch04_filter (test_models.TestBookNumbers.test_ch04_filter) ... ok
+test_ch05 (test_models.TestBookNumbers.test_ch05) ... ok
+test_ch06 (test_models.TestBookNumbers.test_ch06) ... ok
+test_ch07 (test_models.TestBookNumbers.test_ch07) ... ok
+test_ch08 (test_models.TestBookNumbers.test_ch08) ... ok
+test_ch09 (test_models.TestBookNumbers.test_ch09) ... ok
+test_ch10 (test_models.TestBookNumbers.test_ch10) ... ok
+test_ch11 (test_models.TestBookNumbers.test_ch11) ... ok
+test_ch12 (test_models.TestBookNumbers.test_ch12) ... ok
+test_ch13 (test_models.TestBookNumbers.test_ch13) ... ok
+test_ch14 (test_models.TestBookNumbers.test_ch14) ... ok
+test_ch15 (test_models.TestBookNumbers.test_ch15) ... ok
+test_breaker_dilution (test_models.TestRevisedSafeguards.test_breaker_dilution) ... ok
+test_breaker_invalid_inputs (test_models.TestRevisedSafeguards.test_breaker_invalid_inputs) ... ok
+test_breaker_monotonic_grid (test_models.TestRevisedSafeguards.test_breaker_monotonic_grid) ... ok
+test_envelope_empty_uncertainty (test_models.TestRevisedSafeguards.test_envelope_empty_uncertainty) ... ok
+test_envelope_scope_and_assumptions (test_models.TestRevisedSafeguards.test_envelope_scope_and_assumptions) ... ok
+test_envelope_status_validation (test_models.TestRevisedSafeguards.test_envelope_status_validation) ... ok
+test_envelope_valid_ranges (test_models.TestRevisedSafeguards.test_envelope_valid_ranges) ... ok
+test_filter_authorization_gate (test_models.TestRevisedSafeguards.test_filter_authorization_gate) ... ok
+test_filter_empty_and_invalid_bound (test_models.TestRevisedSafeguards.test_filter_empty_and_invalid_bound) ... ok
+test_filter_estimator_exception (test_models.TestRevisedSafeguards.test_filter_estimator_exception) ... ok
+test_filter_excess_uncertainty (test_models.TestRevisedSafeguards.test_filter_excess_uncertainty) ... ok
+test_filter_safe_alternative (test_models.TestRevisedSafeguards.test_filter_safe_alternative) ... ok
+test_filter_unknown_risk (test_models.TestRevisedSafeguards.test_filter_unknown_risk) ... ok
+test_ledger_anchor_allows_extension (test_models.TestRevisedSafeguards.test_ledger_anchor_allows_extension) ... ok
+test_ledger_anchor_deletion (test_models.TestRevisedSafeguards.test_ledger_anchor_deletion) ... ok
+test_ledger_anchor_rewrite (test_models.TestRevisedSafeguards.test_ledger_anchor_rewrite) ... ok
+test_ledger_full_hashes (test_models.TestRevisedSafeguards.test_ledger_full_hashes) ... ok
+test_pearson_comparison (test_models.TestRevisedSafeguards.test_pearson_comparison) ... ok
+test_slope_zero_empty_and_falling (test_models.TestRevisedSafeguards.test_slope_zero_empty_and_falling) ... ok
+
+----------------------------------------------------------------------
+Ran 35 tests in 0.003s
+
+OK

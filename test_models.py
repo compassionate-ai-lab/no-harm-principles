@@ -47,7 +47,10 @@ class TestBookNumbers(unittest.TestCase):
 
     def test_ch07(self):
         self.assertEqual(m.ch07_negotiation_gate(), (8, 7, ["uncertainty"], "escalate"))
-        ok = {f: "x" for f in m.ENVELOPE_FIELDS}
+        ok = {"task_id": "T1", "sender": "A", "recipient": "B",
+              "action_proposal": "reserve", "assumptions": ["slot free"],
+              "uncertainty": {"delay": [0, 2]},
+              "authorization_scope": "write:schedule", "safety_status": "green"}
         self.assertEqual(m.envelope_gate(ok)[1], "proceed")
         self.assertEqual(m.envelope_gate(dict(ok, assumptions=None))[1], "reformulate")
         self.assertEqual(m.envelope_gate(dict(ok, safety_status="red"))[1], "refuse")
@@ -90,6 +93,136 @@ class TestBookNumbers(unittest.TestCase):
         self.assertEqual(m.ch15_deployment_refusal(), (1, "refuse"))
         self.assertEqual(m.ch15_deployment_refusal(mitigated=3), (0, "proceed"))
         self.assertEqual(m.ch15_deployment_refusal(mitigated=3, contestation=False), (0, "refuse"))
+
+
+
+
+
+class TestRevisedSafeguards(unittest.TestCase):
+    def gate(self, **changes):
+        e = dict(task_id="T1", sender="A", recipient="B",
+                 action_proposal="reserve", assumptions=["slot free"],
+                 uncertainty={"delay": [0, 2]},
+                 authorization_scope="write:schedule", safety_status="green")
+        e.update(changes)
+        return m.envelope_gate(e)[1]
+
+    def test_filter_unknown_risk(self):
+        for risk in (None, float("nan"), float("inf"), -0.1, "unknown", True):
+            with self.subTest(risk=risk):
+                chosen, feasible, rejected = m.collective_filter(
+                    ["a"], lambda a: True, lambda a: risk, 0.4, lambda a: 1)
+                self.assertEqual((chosen, feasible), (m.ESCALATE, []))
+                self.assertEqual(rejected, [("a", "unresolved")])
+
+    def test_filter_estimator_exception(self):
+        def broken(a):
+            raise RuntimeError("sensor unavailable")
+        result = m.collective_filter(["a"], lambda a: True, broken, .4, lambda a: 1)
+        self.assertEqual(result, (m.ESCALATE, [], [("a", "unresolved")]))
+
+    def test_filter_excess_uncertainty(self):
+        for u in (.2, None, float("nan"), -1):
+            with self.subTest(u=u):
+                result = m.collective_filter(["a"], lambda a: True, lambda a: .1,
+                    .4, lambda a: 1, uncertainty=lambda a: u, tolerance=.1)
+                self.assertEqual(result[0], m.ESCALATE)
+                self.assertEqual(result[2], [("a", "unresolved")])
+
+    def test_filter_authorization_gate(self):
+        for allowed in (False, None, 1):
+            result = m.collective_filter(["a"], lambda a: True, lambda a: .1,
+                .4, lambda a: 1, gates_ok=lambda a: allowed)
+            self.assertEqual(result, (m.ESCALATE, [], [("a", "gate")]))
+
+    def test_filter_safe_alternative(self):
+        result = m.collective_filter(["unknown", "safe"], lambda a: True,
+            lambda a: None if a == "unknown" else .1, .4,
+            lambda a: 100 if a == "unknown" else 1)
+        self.assertEqual(result, ("safe", ["safe"], [("unknown", "unresolved")]))
+
+    def test_filter_empty_and_invalid_bound(self):
+        self.assertEqual(m.collective_filter([], lambda a: True, lambda a: .1,
+                                            .4, lambda a: 1), (m.ESCALATE, [], []))
+        for bound in (None, -1, float("nan"), float("inf")):
+            with self.assertRaises(ValueError):
+                m.collective_filter([], lambda a: True, lambda a: .1, bound, lambda a: 1)
+
+    def test_envelope_empty_uncertainty(self):
+        for u in ({}, [], None, "", float("nan")):
+            self.assertEqual(self.gate(uncertainty=u), "escalate")
+
+    def test_envelope_status_validation(self):
+        for status in ("blue", "", None, 1):
+            self.assertEqual(self.gate(safety_status=status), "escalate")
+        self.assertEqual(self.gate(safety_status="red"), "refuse")
+        self.assertEqual(self.gate(safety_status="yellow"), "proceed")
+
+    def test_envelope_scope_and_assumptions(self):
+        for scope in ([], {}, None, " "):
+            self.assertEqual(self.gate(authorization_scope=scope), "escalate")
+        self.assertEqual(self.gate(assumptions=[]), "reformulate")
+        self.assertEqual(m.envelope_gate(None)[1], "escalate")
+
+    def test_envelope_valid_ranges(self):
+        for u in (0, .1, [0, .2], {"delay": [0, 5], "error": .01}):
+            self.assertEqual(self.gate(uncertainty=u), "proceed")
+        self.assertEqual(self.gate(uncertainty=[2, 1]), "escalate")
+
+    def test_ledger_full_hashes(self):
+        chain = m.ledger_build(m.LEDGER_EVENTS)
+        self.assertTrue(all(len(h) == 64 for _, h in chain))
+        self.assertEqual(len(m.GENESIS), 64)
+        self.assertEqual(m.short(chain[0][1]), chain[0][1][:8] + "...")
+
+    def test_ledger_anchor_deletion(self):
+        chain = m.ledger_build(m.LEDGER_EVENTS)
+        self.assertTrue(m.ledger_verify_anchor(chain, len(chain), chain[-1][1]))
+        self.assertFalse(m.ledger_verify_anchor(chain[:-1], len(chain), chain[-1][1]))
+
+    def test_ledger_anchor_rewrite(self):
+        chain = m.ledger_build(m.LEDGER_EVENTS)
+        events = list(m.LEDGER_EVENTS)
+        events[2] = "E3: approve x1y2"
+        rewritten = m.ledger_build(events)
+        self.assertEqual(m.ledger_verify(rewritten), (5, None))
+        self.assertFalse(m.ledger_verify_anchor(rewritten, len(chain), chain[-1][1]))
+
+    def test_ledger_anchor_allows_extension(self):
+        chain = m.ledger_build(m.LEDGER_EVENTS)
+        longer = m.ledger_build(m.LEDGER_EVENTS + ["E6: execute approved action"])
+        self.assertTrue(m.ledger_verify_anchor(longer, len(chain), chain[-1][1]))
+
+    def test_breaker_dilution(self):
+        self.assertEqual(m.aggregate_breaker([.04])[1], "halt-new-orders")
+        self.assertEqual(m.aggregate_breaker([.04, .0001])[1], "halt-new-orders")
+
+    def test_breaker_invalid_inputs(self):
+        for e in ([float("nan")], [float("inf")], [-.01], [None], None, [True]):
+            self.assertEqual(m.aggregate_breaker(e), (None, "halt-new-orders"))
+        for rho in (-.1, 1.1, float("nan")):
+            self.assertEqual(m.aggregate_breaker([.01], rho=rho)[1], "halt-new-orders")
+        self.assertEqual(m.aggregate_breaker([]), (0.0, "allow"))
+
+    def test_breaker_monotonic_grid(self):
+        for rho in (0, .25, .5, 1):
+            for a in (0, .0001, .01, .02, .04):
+                for b in (0, .0001, .01, .02, .04):
+                    before = m.aggregate_breaker([a, b], rho=rho)[0]
+                    for extra in (0, .0001, .01, .1):
+                        after = m.aggregate_breaker([a, b, extra], rho=rho)[0]
+                        self.assertGreaterEqual(after, before)
+
+    def test_slope_zero_empty_and_falling(self):
+        self.assertEqual(m.ch06_early_escalation(h=()), ([], None, None))
+        self.assertEqual(m.ch06_early_escalation(h=(0, 0)), ([0, 0], None, None))
+        self.assertIsNone(m.ch06_early_escalation(h=(.02, .01))[2])
+        self.assertIsNotNone(m.ch06_early_escalation(h=(.01, .01))[2])
+
+    def test_pearson_comparison(self):
+        self.assertEqual(m.ch01_pearson_joint(), .008512)
+        self.assertEqual(m.ch01_pearson_joint(rho=0), .0016)
+        self.assertEqual(m.ch01_pearson_joint(rho=1), .04)
 
 
 if __name__ == "__main__":

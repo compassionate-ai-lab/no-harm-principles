@@ -1,16 +1,16 @@
 # No-Harm Principles in AI Architectures: companion code
 
-<img src="images/no-harm-principles-cover.jpg" alt="Cover of No-Harm Principles in AI Architectures: Ahimsa-Driven Multi-Agent AI Systems by Dr. Sri Amit Ray" width="240" align="right">
+<img src="images/no-harm-principles-cover.jpeg" alt="Cover of No-Harm Principles in AI Architectures: Ahimsa-Driven Multi-Agent AI Systems by Dr. Sri Amit Ray" width="240" align="right">
 
 Companion programs for the book **No-Harm Principles in AI Architectures: Ahimsa-Driven Multi-Agent AI Systems** by Dr. Sri Amit Ray ([Compassionate AI Lab](https://amitray.com/compassionate-ai-lab/), 2026; ISBN 978-81-69641-30-2 (First Edition, 2026)).
 
-[The book](https://amitray.com/no-harm-principles-ai-architectures-ebook/), extends Ahimsa (non-injury) from the single AI agent to the multi-agent system: individual hard constraints, collective (joint-action) constraints enforced outside the agents, and the protocols and ledgers that keep responsibility reconstructible. This repository holds the program behind every worked example in the book, and a test file that checks each printed number.
+[The book](https://amitray.com/no-harm-principles-ai-architectures-ebook/), extends Ahimsa (non-injury) from the single AI agent to the multi-agent system: individual hard constraints, collective (joint-action) constraints enforced outside the agents, and the protocols and ledgers that keep responsibility reconstructible. This repository holds the program behind every worked example in the book, and a test suite that checks the worked examples and regression cases for unknown risk, invalid envelopes, external ledger anchors, and non-dilutable aggregation.
 
 ## Run it
 
 ```sh
 python models_no_harm_principles_in_ai_architectures.py     # prints every worked example
-python -m unittest test_models.py                           # 16 tests, all numbers in the book
+python -m unittest test_models.py                           # 35 tests: worked examples and safeguard regressions
 ```
 
 Python 3.8 or later; standard library only. `results.txt` is the output of the first command.
@@ -40,7 +40,15 @@ The inputs are small illustrative values chosen so every step can be checked by 
 ## Get the book
 
 - Full-color PDF eBook: [amitray.com/no-harm-principles-ai-architectures-ebook](https://amitray.com/no-harm-principles-ai-architectures-ebook/)
-- Paperback and Kindle: search Amazon for *No-Harm Principles in AI Architectures* by Sri Amit Ray
+- Kindle and paperback availability: consult the book page for current publication links.
+
+## Related published books
+
+1. Ray, Amit. *Human-Centered Compassionate AI*. Compassionate AI Lab, 2026. ISBN: 978-8169641050.
+2. Ray, Amit. *Compassionate Artificial Intelligence: Frameworks and Algorithms*. Compassionate AI Lab, 2018. ISBN: 978-9382123460.
+3. Ray, Amit. *Compassionate Artificial Superintelligence AI 5.0*. Compassionate AI Lab, 2018. ISBN: 978-9382123446.
+4. Ray, Sri Amit. *Compassionate Superintelligence: Architecture, Alignment, and the Future of Intelligence That Cares*. 2nd ed., Compassionate AI Lab, 2026. ISBN 978-81-69641-22-7.
+5. Ray, Sri Amit. *Ahimsa in Agentic AI: Algorithmic Non-Violence and the Architecture of Compassionate Code*. Compassionate AI Lab, 2026. ISBN 978-81-69641-29-6. Companion code: <https://github.com/compassionate-ai-lab/ahimsa-in-agentic-ai>
 
 ## Compassionate AI Key Articles
 
@@ -51,7 +59,7 @@ Articles by Dr. Sri Amit Ray that develop the frameworks the book builds on (the
 - Ray, Amit. "The Top 12 LLM Benchmarks in 2026: A Complete Guide to Evaluating Large Language Models." *Compassionate AI*, 3.10 (2026): 1–5. [https://amitray.com/top-12-llm-benchmarks/](https://amitray.com/top-12-llm-benchmarks/)
 - Ray, Amit. "Can Quantum AI Become Conscious? The Sri Amit Ray Framework for Spontaneous Machine Awareness." *Compassionate AI*, 3.9 (2026): 30–32. [https://amitray.com/can-quantum-ai-become-conscious-spontaneous-machine-awareness/](https://amitray.com/can-quantum-ai-become-conscious-spontaneous-machine-awareness/)
 - Ray, Amit. "Heart Disease Prevention with Agentic AI: Tools, Techniques, Mathematical Models, and AI Architectures." *Compassionate AI*, 3.8 (2026): 78–80. [https://amitray.com/heart-disease-prevention-agentic-ai/](https://amitray.com/heart-disease-prevention-agentic-ai/)
-- Ray, Amit. "Compassionate AI in Health Care: A Comprehensive Review (2026)." *Compassionate AI*, 3.8 (2026): 63–65. [https://amitray.com/compassionate-ai-in-health-care-a-comprehensive-review/](https://amitray.com/compassionate-ai-in-health-care-a-comprehensive-review/)
+- Ray, Amit. "Compassionate AI in Health Care: A Comprehensive Review (2026)." *Compassionate AI*, 3.8 (2026): 63–74. [https://amitray.com/compassionate-ai-in-health-care-a-comprehensive-review/](https://amitray.com/compassionate-ai-in-health-care-a-comprehensive-review/)
 - Ray, Amit. "The 25 Algorithms of the Sri Amit Ray Compassionate AI Architecture." *Compassionate AI*, 3.8 (2026): 63–65. [https://amitray.com/ray-25-compassionate-ai-algorithms/](https://amitray.com/ray-25-compassionate-ai-algorithms/)
 - Ray, Amit. "Human-AI Emotional Resonance Algorithm: Ethical Emotional Co-Regulation in the Sri Amit Ray Compassionate AI Architecture (CAIA)." *Compassionate AI*, 2.6 (2026): 81–83. [https://amitray.com/human-ai-emotional-resonance-algorithm-compassionate-ai/](https://amitray.com/human-ai-emotional-resonance-algorithm-compassionate-ai/)
 - Ray, Amit. "Build Your Own Agentic AI Healthcare MCP Server: A Complete Guide to AI-Powered Healthcare Agents." *Compassionate AI*, 3.8 (2026): 60–62. [https://amitray.com/agentic-ai-healthcare-mcp-server/](https://amitray.com/agentic-ai-healthcare-mcp-server/)
@@ -110,9 +118,20 @@ Ray, S. A. (2026). *No-Harm Principles in AI Architectures: companion code* [Com
 
 GitHub's **Cite this repository** button (from `CITATION.cff`) gives the same reference in APA and BibTeX.
 
-## Corrections
+## Corrections and validation - 25 October 2026
 
-Please report errors through the repository's Issues page. Corrections to the book will be listed here.
+This update matches the revised 199-page full-color PDF eBook.
+
+- The collective filter excludes unknown, non-finite or negative risk, supports uncertainty tolerance and authorization/consent gates, and returns ESCALATE when no feasible proposal remains.
+- The envelope gate validates non-empty field content and declared safety statuses.
+- Ledger records store complete SHA-256 hashes; external checkpoints detect rewritten or shortened anchored histories.
+- Aggregate exposure uses max(e) + rho * (sum(e) - max(e)); small added exposures cannot dilute a large one.
+- Slope extrapolation terminates for zero or falling increments.
+- The Chapter 1 coupling screen is distinguished from the exact equal-marginal Bernoulli/Pearson calculation.
+
+Validation: 35 unittest methods passed under Python 3.12, including the original 16 example tests and 19 additional regression tests. These checks cover the teaching examples and stated regression cases; they do not establish production safety, clinical validation or regulatory conformity.
+
+Please report errors through the repository's Issues page.
 
 ## Licence
 
