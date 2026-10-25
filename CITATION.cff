@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the book."
+title: "No-Harm Principles in AI Architectures: companion code"
+authors:
+  - family-names: Ray
+    given-names: Sri Amit
+repository-code: "https://github.com/compassionate-ai-lab/no-harm-principles"
+url: "https://amitray.com/compassionate-ai-lab/"
+license: MIT
+keywords:
+  - multi-agent systems
+  - AI safety
+  - compassionate AI
+  - ahimsa
+preferred-citation:
+  type: book
+  title: "No-Harm Principles in AI Architectures: Ahimsa-Driven Multi-Agent AI Systems"
+  authors:
+    - family-names: Ray
+      given-names: Sri Amit
+  publisher:
+    name: "Compassionate AI Lab"
+  year: 2026
+  edition: "First edition"
+  isbn: "978-81-69641-30-2"
